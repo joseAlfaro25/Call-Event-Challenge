@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: call-event-orchestrator
+Version: 1.0.0
+Requires-Python: >=3.11
+Requires-Dist: pydantic==2.9.2
+Requires-Dist: PyYAML==6.0.1
+Requires-Dist: jsonschema==4.25.0
+Requires-Dist: langgraph==0.2.28
+Requires-Dist: langgraph-checkpoint==1.0.12
+Requires-Dist: langgraph-checkpoint-sqlite==1.0.4
+Requires-Dist: langchain-openai==0.3.31
+Requires-Dist: python-dotenv==1.1.1
+Provides-Extra: dev
+Requires-Dist: ruff==0.14.5; extra == "dev"

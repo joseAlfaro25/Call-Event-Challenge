@@ -1,0 +1,43 @@
+{
+  "event_id": "evt_extra_19",
+  "type": "call.ended",
+  "occurred_at": "2026-09-16T12:00:00+02:00",
+  "organization_id": "org_demo_a",
+  "idempotency_key": "lk-extra-19",
+  "delivery_attempt": 1,
+  "campaign": { "system_key": "first_touch_voice", "entry_id": "ce-extra-19" },
+  "lead": {
+    "contact_id": "c_extra_19",
+    "phone": "+34600000919",
+    "full_name": "Lead Descartado",
+    "language": "es"
+  },
+  "telephony": {
+    "provider": "livekit_sip",
+    "call_id": "lk-extra-19",
+    "dialed_at": "2026-09-16T11:59:00+02:00",
+    "ringing_at": "2026-09-16T11:59:10+02:00",
+    "answered_at": "2026-09-16T11:59:20+02:00",
+    "ended_at": "2026-09-16T12:00:00+02:00",
+    "sip_status_code": 200,
+    "sip_status": "OK",
+    "disconnect_reason": "CLIENT_INITIATED",
+    "hung_up_by": "callee",
+    "duration_seconds": 40,
+    "amd": { "result": "human", "source": "livekit_amd" }
+  },
+  "transcript": [
+    {
+      "role": "user",
+      "message": "Ya he comprado otra vivienda, no sigo buscando.",
+      "time_in_call_secs": 20
+    }
+  ],
+  "agent_outcome": {
+    "call_outcome": "completed",
+    "reason": "already_bought",
+    "appointment": null,
+    "slots_snapshot": {}
+  },
+  "quality": { "no_conversation": false }
+}

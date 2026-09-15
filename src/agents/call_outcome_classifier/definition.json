@@ -1,0 +1,34 @@
+{
+  "name": "call_outcome_classifier",
+  "type": "structured_classifier",
+  "model": {
+    "env": "MODEL",
+    "temperature": 0,
+    "reasoning_effort": "none",
+    "timeout_seconds": 30,
+    "max_retries": 2
+  },
+  "prompt": {
+    "path": "prompts/classification_v1.md",
+    "version": "v2"
+  },
+  "output": {
+    "schema": "Classification",
+    "fields": {
+      "callback_day": "Optional relative day: hoy, mañana, pasado mañana, or weekday",
+      "callback_time": "Optional local 24-hour time in HH:MM format",
+      "callback_when_raw": "Optional original callback time expression for compatibility"
+    },
+    "labels": [
+      "callback",
+      "cortada",
+      "visita_sin_confirmar",
+      "documentacion_enviada",
+      "documentacion_pendiente",
+      "descartado",
+      "no_contactar",
+      "persona_equivocada",
+      "otro"
+    ]
+  }
+}
