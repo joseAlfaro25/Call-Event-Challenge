@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Visor · Call-event orchestrator</title>
+  <style>
+    :root{--bg:#0b0d0f;--panel:#14171a;--line:#353a40;--text:#f2f4f5;--muted:#aeb4ba;--accent:#fb923c;--selected:#383e44;--selected-indicator:#8a939c;--focus:#d4d9de;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--text);display:flex;flex-direction:column;font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    header{border-bottom:1px solid var(--line);padding:18px 24px;display:flex;align-items:baseline;gap:15px;flex-wrap:wrap;background:var(--panel)}h1{font-size:17px;margin:0;font-weight:650}h1 span{color:var(--accent)}.sub{color:var(--muted);font-size:13px}.actions{margin-left:auto;display:flex;gap:9px;align-items:center;flex-wrap:wrap}label.button{border:1px solid var(--line);background:var(--bg);padding:7px 13px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:550}label.button:hover{border-color:var(--accent);color:var(--accent)}input[type=file]{display:none}
+    main{display:grid;grid-template-columns:minmax(330px,420px) 1fr;gap:0;flex:1;min-height:0;overflow:hidden}@media(max-width:900px){main{grid-template-columns:1fr;overflow:visible}}#queue{border-right:1px solid var(--line);overflow-y:auto;background:var(--panel);min-width:0}#detail{overflow-y:auto;padding:22px 26px;min-width:0}
+    .summary{display:flex;gap:18px;padding:13px 18px;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap}.summary b{display:block;font-size:19px;font-weight:650;letter-spacing:-.02em}.summary .bad{color:var(--bad)}.summary .ok{color:var(--ok)}.summary .warn{color:var(--warn)}
+    .row{padding:13px 18px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer;display:grid;grid-template-columns:27px 1fr auto;gap:10px;align-items:start;width:100%}.row:hover{background:#22272c}.row.selected{background:var(--selected);box-shadow:inset 3px 0 0 var(--selected-indicator)}.row:focus-visible{outline:2px solid var(--focus);outline-offset:-4px}.number{font:11px/1.6 var(--mono);color:var(--muted)}.name{font-weight:600;font-size:14px;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;margin-top:2px;overflow-wrap:anywhere}.pill{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap;font-weight:550}.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}.pill.warn{color:var(--warn);border-color:var(--warn)}
+    h2{font-size:15px;margin:26px 0 10px;font-weight:650}h2:first-child{margin-top:0}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:13px;margin-bottom:7px}td,th{border-bottom:1px solid var(--line);padding:6px 10px 6px 0;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{color:var(--muted);font-weight:550;width:180px}code,.mono{font-family:var(--mono);font-size:12px}pre{font:12px/1.45 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0;color:var(--muted)}.turn{display:grid;grid-template-columns:48px 70px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}.seconds{color:var(--muted);font:11.5px var(--mono);text-align:right}.speaker{color:var(--muted);font-size:11.5px;font-weight:650;text-transform:uppercase}.speaker.agent{color:var(--accent)}.order{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:9px;background:var(--panel);border-left:3px solid var(--accent)}.order .operation{font:650 13px var(--mono)}.note{background:var(--bg);border-left:3px solid var(--warn);padding:9px 13px;font-size:13px;margin:10px 0;color:var(--muted)}.empty{color:var(--muted);padding:60px 26px;text-align:center;font-size:14px}.error-list{margin:0;padding-left:20px;color:var(--bad);font-size:12px}.file-list{color:var(--muted);font-size:12px;overflow-wrap:anywhere}.raw{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Call-event orchestrator <span>·</span> visor</h1>
+    <div class="sub">Eventos, decisiones y órdenes</div>
+    <div class="actions">
+      <span class="sub" id="status">sin salida cargada</span>
+      <label class="button">Cargar carpeta
+        <input id="directoryInput" type="file" webkitdirectory directory multiple>
+      </label>
+      <label class="button">Cargar archivos
+        <input id="filesInput" type="file" multiple accept=".json,.jsonl,application/json">
+      </label>
+    </div>
+  </header>
+  <main>
+    <aside id="queue"><div class="empty">Carga una carpeta del proyecto o selecciona los eventos y archivos de salida.</div></aside>
+    <section id="detail"><div class="empty">Elige una entrada para ver sus datos, conversación, decisión y órdenes.</div></section>
+  </main>
+  <script>
+    "use strict";
+    const state = { events: [], decisions: new Map(), orders: new Map(), errors: [], files: [], selectedId: null };
+    const $ = (selector) => document.querySelector(selector);
+    const text = (value, fallback = "—") => value === null || value === undefined || value === "" ? fallback : String(value);
+    const esc = (value) => text(value, "").replace(/[&<>"']/g, (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[character]));
+    const json = (value) => esc(JSON.stringify(value, null, 2));
+    const formatDate = (value) => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? text(value) : date.toLocaleString("es-ES", {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit", timeZone:"Europe/Madrid"}); };
+    const isEvent = (value) => value && typeof value === "object" && typeof value.event_id === "string" && typeof value.type === "string";
+    const isDecision = (value) => value && typeof value === "object" && typeof value.event_id === "string" && ("etiqueta" in value || "confidence" in value || "confianza" in value);
+    const isOrder = (value) => value && typeof value === "object" && typeof value.event_id === "string" && ("operacion" in value || "operation" in value);
+
+    function addEvent(value, source) {
+      if (!isEvent(value)) { state.errors.push(`${source}: objeto no reconocido como evento`); return; }
+      const existing = state.events.findIndex((event) => event.event_id === value.event_id);
+      if (existing >= 0) { state.events[existing] = value; state.errors.push(`${source}: evento duplicado ${value.event_id}, se conserva la última copia`); }
+      else state.events.push(value);
+    }
+    function addDecision(value, source) {
+      if (!isDecision(value)) { state.errors.push(`${source}: decisión inválida`); return; }
+      state.decisions.set(value.event_id, value);
+    }
+    function addOrder(value, source) {
+      if (!isOrder(value)) { state.errors.push(`${source}: orden inválida`); return; }
+      const orders = state.orders.get(value.event_id) || []; orders.push(value); state.orders.set(value.event_id, orders);
+    }
+    function parseJsonLine(line, source, lineNumber) {
+      if (!line.trim()) return;
+      let value;
+      try { value = JSON.parse(line); } catch (error) { state.errors.push(`${source}, línea ${lineNumber}: JSON inválido`); return; }
+      if (isEvent(value)) addEvent(value, `${source}, línea ${lineNumber}`);
+      else if (isDecision(value)) addDecision(value, `${source}, línea ${lineNumber}`);
+      else if (isOrder(value)) addOrder(value, `${source}, línea ${lineNumber}`);
+      else state.errors.push(`${source}, línea ${lineNumber}: registro no reconocido`);
+    }
+    async function readFile(file) {
+      const name = file.name.toLowerCase(); const source = file.webkitRelativePath || file.name;
+      state.files.push(source);
+      let content;
+      try { content = await file.text(); } catch (error) { state.errors.push(`${source}: no se pudo leer`); return; }
+      if (name.endsWith(".jsonl")) { content.split(/\r?\n/).forEach((line, index) => parseJsonLine(line, source, index + 1)); return; }
+      if (!name.endsWith(".json")) return;
+      let value;
+      try { value = JSON.parse(content); } catch (error) { state.errors.push(`${source}: JSON inválido`); return; }
+      if (Array.isArray(value)) value.forEach((entry) => isEvent(entry) ? addEvent(entry, source) : isDecision(entry) ? addDecision(entry, source) : addOrder(entry, source));
+      else if (isEvent(value)) addEvent(value, source);
+      else if (isDecision(value)) addDecision(value, source);
+      else if (isOrder(value)) addOrder(value, source);
+    }
+    async function loadFiles(fileList) {
+      state.events = []; state.decisions.clear(); state.orders.clear(); state.errors = []; state.files = []; state.selectedId = null;
+      for (const file of Array.from(fileList)) await readFile(file);
+      state.events.sort((a, b) => String(a.occurred_at || "").localeCompare(String(b.occurred_at || "")));
+      state.selectedId = displayRows()[0]?.event.event_id || null;
+      render();
+    }
+    function syntheticEvent(eventId) {
+      const decision = state.decisions.get(eventId); const orders = state.orders.get(eventId) || [];
+      return { event_id: eventId, type: "output-only", synthetic: true, decision, orders };
+    }
+    function displayRows() {
+      const rows = state.events.map((event) => ({event, decision: state.decisions.get(event.event_id), orders: state.orders.get(event.event_id) || []}));
+      const knownIds = new Set(state.events.map((event) => event.event_id));
+      const outputIds = new Set([...state.decisions.keys(), ...state.orders.keys()]);
+      for (const eventId of outputIds) if (!knownIds.has(eventId)) {
+        const event = syntheticEvent(eventId); rows.push({event, decision: event.decision, orders: event.orders});
+      }
+      return rows.sort((a, b) => {
+        const aDate = String(a.event.occurred_at || ""); const bDate = String(b.event.occurred_at || "");
+        if (Boolean(aDate) !== Boolean(bDate)) return aDate ? -1 : 1;
+        return aDate.localeCompare(bDate) || a.event.event_id.localeCompare(b.event.event_id);
+      });
+    }
+    function executionState(event) {
+      const decision = state.decisions.get(event.event_id); const orders = state.orders.get(event.event_id) || [];
+      if (!decision) return {label:"pendiente", className:"warn"};
+      return {label:`${orders.length} orden${orders.length === 1 ? "" : "es"}`, className:orders.length ? "ok" : "warn"};
+    }
+    function renderSummary() {
+      const orderCount = Array.from(state.orders.values()).reduce((total, orders) => total + orders.length, 0);
+      const orphanCount = Array.from(new Set([...state.decisions.keys(), ...state.orders.keys()])).filter((id) => !state.events.some((event) => event.event_id === id)).length;
+      return `<div class="summary"><div><b>${state.events.length}</b>eventos</div><div><b>${state.decisions.size}</b>decisiones</div><div><b>${orderCount}</b>órdenes</div><div class="${state.errors.length ? "bad" : "ok"}"><b>${state.errors.length}</b>avisos</div>${orphanCount ? `<div class="warn"><b>${orphanCount}</b>huérfanos</div>` : ""}</div>`;
+    }
+    function renderQueue() {
+      const rows = displayRows();
+      if (!rows.length) { $("#queue").innerHTML = `${renderSummary()}<div class="empty">No se encontraron eventos ni salidas con event_id.<br>Revisa los avisos del estado de ejecución.</div>`; return; }
+      let html = renderSummary();
+      rows.forEach(({event, decision, orders}, index) => { const execution = executionState(event); const lead = event.lead || {};
+        const synthetic = event.synthetic && !event.outputSnapshot ? `<span class="meta">falta el JSON del evento</span>` : "";
+        html += `<button type="button" class="row${event.event_id === state.selectedId ? " selected" : ""}" data-id="${esc(event.event_id)}" aria-selected="${event.event_id === state.selectedId}"><span class="number">${String(index + 1).padStart(2, "0")}</span><span><span class="name">${esc(text(lead.full_name, event.event_id))}</span><span class="meta">${esc(formatDate(event.occurred_at))} · ${esc(event.type)} · ${orders.length} órdenes</span>${synthetic}</span><span class="pill ${execution.className}">${esc(decision ? text(decision.etiqueta || decision.label, "decidido") : execution.label)}</span></button>`;
+      });
+      $("#queue").innerHTML = html; $("#queue").querySelectorAll(".row").forEach((row) => row.addEventListener("click", () => selectRow(row.dataset.id)));
+    }
+    function selectRow(eventId) { if (!displayRows().some((entry) => entry.event.event_id === eventId)) return; state.selectedId = eventId; render(); const row = Array.from($("#queue").querySelectorAll(".row")).find((candidate) => candidate.dataset.id === eventId); if (row) row.focus({preventScroll:true}); }
+    function setDetail(html) { const detail = $("#detail"); detail.innerHTML = html; detail.scrollTop = 0; }
+    function tableRow(label, value, className = "") { return `<tr><th>${esc(label)}</th><td class="${className}">${value}</td></tr>`; }
+    function renderDetail() {
+      const row = displayRows().find((entry) => entry.event.event_id === state.selectedId); if (!row) { setDetail(`<div class="empty">No hay un evento seleccionado.</div>`); return; }
+      const event = row.event; const decision = row.decision; const orders = row.orders;
+      if (event.synthetic) {
+        let html = `<h2>${esc(event.event_id)} <span class="sub mono">salida sin evento base</span></h2><div class="note"><b>Falta el JSON del evento.</b><br>Esta entrada se reconstruyó desde decisions.jsonl y/o orders.jsonl; no hay conversación ni metadatos del evento para mostrar.</div>`;
+        html += `<h2>Decisión</h2>` + (decision ? `<table>${tableRow("Etiqueta", esc(decision.etiqueta || decision.label), "mono")}${tableRow("Motivo", esc(decision.motivo || decision.reason))}${tableRow("Confianza", esc(decision.confianza ?? decision.confidence), "mono")}${decision.ordenes ? tableRow("Órdenes referenciadas", esc(decision.ordenes.join(", ")), "mono") : ""}</table>` : `<p class="sub">No hay decisión registrada.</p>`);
+        html += `<h2>Órdenes</h2>` + (orders.length ? orders.map((order) => `<article class="order"><div class="operation">${esc(order.operacion || order.operation || "orden")}</div><div class="meta">${esc(order.orden_id || order.order_id || "sin id")} · ${esc(order.idempotency_key || "sin clave")}</div><pre>${json(order.cuerpo || order.body || order)}</pre></article>`).join("") : `<p class="sub">Ninguna.</p>`);
+        setDetail(html); return;
+      }
+      const lead = event.lead || {}; const telephony = event.telephony || {}; const amd = telephony.amd || {}; let html = `<h2>${esc(text(lead.full_name, event.event_id))} <span class="sub mono">${esc(event.event_id)}</span></h2>`;
+      html += `<table>${tableRow("Tipo", esc(event.type), "mono")}${tableRow("Ocurrió", esc(formatDate(event.occurred_at)))}${tableRow("Organización", esc(event.organization_id), "mono")}${tableRow("Clave idempotencia", esc(event.idempotency_key), "mono")}${tableRow("Inmueble", `${esc(text(lead.property_ref))} · ${esc(text(lead.property_address, "dirección no disponible"))}`)}`;
+      if (event.type === "call.ended" || event.telephony) {
+        html += `${tableRow("SIP", `${esc(text(telephony.sip_status_code))} ${esc(telephony.sip_status)}`, "mono")}${tableRow("Desconexión", `${esc(text(telephony.disconnect_reason))} · colgó ${esc(text(telephony.hung_up_by))}`, "mono")}${tableRow("Descuelgue", `${telephony.answered_at ? esc(formatDate(telephony.answered_at)) : "nunca"} · ${esc(text(telephony.duration_seconds, "0"))} s`)}${tableRow("Contestador", `${esc(text(amd.result))} (${esc(text(amd.source))})`, "mono")}`;
+        if (amd.greeting_transcript) html += tableRow("Saludo oído", `<i>«${esc(amd.greeting_transcript)}»</i>`);
+        const outcome = event.agent_outcome || {};
+        html += tableRow("Desenlace del agente", `${esc(text(outcome.call_outcome, "(vacío)"))}${outcome.reason ? ` · ${esc(outcome.reason)}` : ""}`, "mono");
+        if (outcome.appointment) html += tableRow("Cita creada", `${esc(text(outcome.appointment.appointment_id))} · ${esc(formatDate(outcome.appointment.start_time))}`, "mono");
+        if (outcome.slots_snapshot && Object.keys(outcome.slots_snapshot).length) html += tableRow("Slots recogidos", `<pre>${json(outcome.slots_snapshot)}</pre>`);
+      }
+      if (event.message) html += tableRow("Mensaje", `«${esc(text(event.message.text || event.message.body || event.message.content))}»`);
+      html += `</table>`;
+      if (event.transcript && event.transcript.length) { html += `<h2>Transcripción</h2>`; event.transcript.forEach((turn) => { html += `<div class="turn"><div class="seconds">${esc(text(turn.time_in_call_secs, "—"))} s</div><div class="speaker ${turn.role === "agent" ? "agent" : ""}">${esc(turn.role === "agent" ? "agente" : "lead")}</div><div>${esc(turn.message)}</div></div>`; }); }
+      else if (event.type === "call.ended") html += `<h2>Transcripción</h2><p class="sub">Sin conversación.</p>`;
+      html += `<h2>Decisión</h2>` + (decision ? `<table>${tableRow("Etiqueta", esc(decision.etiqueta || decision.label), "mono")}${tableRow("Motivo", esc(decision.motivo || decision.reason))}${tableRow("Confianza", esc(decision.confianza ?? decision.confidence), "mono")}${decision.ordenes ? tableRow("Órdenes referenciadas", esc(decision.ordenes.join(", ")), "mono") : ""}</table>` : `<p class="sub">No hay decisión para este evento.</p>`);
+      html += `<h2>Órdenes</h2>` + (orders.length ? orders.map((order) => `<article class="order"><div class="operation">${esc(order.operacion || order.operation || "orden")}</div><div class="meta">${esc(order.orden_id || order.order_id || "sin id")} · ${esc(order.idempotency_key || "sin clave")}</div><pre>${json(order.cuerpo || order.body || order)}</pre></article>`).join("") : `<p class="sub">Ninguna.</p>`);
+      setDetail(html);
+    }
+    function renderStatus() { const fileCount = state.files.length; $("#status").textContent = fileCount ? `${fileCount} archivos · ${state.events.length} eventos · ${state.errors.length} avisos` : "sin salida cargada"; if (state.errors.length) $("#status").title = state.errors.join("\n"); }
+    function renderErrors() { if (!state.errors.length) return; const errors = state.errors.slice(0, 20).map((error) => `<li>${esc(error)}</li>`).join(""); $("#queue").insertAdjacentHTML("beforeend", `<div class="note"><b>Estado de ejecución</b><ul class="error-list">${errors}</ul>${state.errors.length > 20 ? `<div>…y ${state.errors.length - 20} avisos más.</div>` : ""}<div class="file-list">Archivos: ${state.files.map(esc).join(", ") || "ninguno"}</div></div>`); }
+    function render() { renderQueue(); renderDetail(); renderStatus(); renderErrors(); }
+    $("#directoryInput").addEventListener("change", (event) => loadFiles(event.target.files));
+    $("#filesInput").addEventListener("change", (event) => loadFiles(event.target.files));
+
+    // The output snapshot makes the viewer useful even when only output/ is loaded.
+    function syntheticEvent(eventId) {
+      const decision = state.decisions.get(eventId); const orders = state.orders.get(eventId) || [];
+      const snapshot = decision && decision.evento && typeof decision.evento === "object" ? decision.evento : null;
+      if (snapshot) return {...snapshot, event_id:eventId, synthetic:true, outputSnapshot:true, decision, orders};
+      return {event_id:eventId, type:"output-only", synthetic:true, decision, orders};
+    }
+    function renderCompleteEvent(event) {
+      const lead = event.lead || {}; const telephony = event.telephony || {}; const amd = telephony.amd || {};
+      let html = "<h2>" + esc(text(lead.full_name, event.event_id)) + " <span class=\"sub mono\">" + esc(event.event_id) + "</span></h2>";
+      if (event.outputSnapshot) html += "<div class=\"note\">Los datos del evento se recuperaron desde la decisión registrada.</div>";
+      html += "<h2>Evento</h2><table>";
+      html += tableRow("Tipo", esc(event.type), "mono") + tableRow("Ocurrió", esc(formatDate(event.occurred_at)));
+      html += tableRow("Organización", esc(event.organization_id), "mono") + tableRow("Clave idempotencia", esc(event.idempotency_key), "mono");
+      html += tableRow("Intento de entrega", esc(event.delivery_attempt)) + tableRow("Campaña", esc(text(event.campaign && event.campaign.system_key)) + " · entrada " + esc(text(event.campaign && event.campaign.entry_id)));
+      html += "</table><h2>Lead e inmueble</h2><table>";
+      html += tableRow("Nombre", esc(text(lead.full_name))) + tableRow("Contact ID", esc(text(lead.contact_id)), "mono");
+      html += tableRow("Teléfono", esc(text(lead.phone)), "mono") + tableRow("Origen", esc(text(lead.lead_source)));
+      html += tableRow("Idioma", esc(text(lead.language)), "mono") + tableRow("Referencia", esc(text(lead.property_ref)), "mono");
+      html += tableRow("Dirección", esc(text(lead.property_address, "dirección no disponible"))) + "</table>";
+      if (event.telephony) {
+        html += "<h2>Telefonía</h2><table>";
+        html += tableRow("Proveedor", esc(text(telephony.provider)), "mono") + tableRow("Call ID", esc(text(telephony.call_id)), "mono");
+        html += tableRow("Provider Call ID", esc(text(telephony.provider_call_id)), "mono") + tableRow("Marcación", esc(formatDate(telephony.dialed_at)));
+        html += tableRow("Timbre", esc(formatDate(telephony.ringing_at))) + tableRow("Descuelgue", telephony.answered_at ? esc(formatDate(telephony.answered_at)) : "nunca");
+        html += tableRow("Fin", esc(formatDate(telephony.ended_at))) + tableRow("Duración", esc(text(telephony.duration_seconds, "0")) + " s");
+        html += tableRow("SIP", esc(text(telephony.sip_status_code)) + " " + esc(telephony.sip_status), "mono");
+        html += tableRow("Desconexión", esc(text(telephony.disconnect_reason)) + " · colgó " + esc(text(telephony.hung_up_by)), "mono");
+        html += tableRow("Contestador", esc(text(amd.result)) + " (" + esc(text(amd.source)) + ")", "mono");
+        html += tableRow("Detectado en", amd.detected_at_secs === null || amd.detected_at_secs === undefined ? "—" : esc(amd.detected_at_secs) + " s");
+        if (amd.greeting_transcript) html += tableRow("Saludo oído", "<i>«" + esc(amd.greeting_transcript) + "»</i>");
+        html += "</table>";
+      }
+      if (event.agent_outcome) {
+        const outcome = event.agent_outcome;
+        html += "<h2>Resultado del agente</h2><table>";
+        html += tableRow("Desenlace", esc(text(outcome.call_outcome, "(vacío)")) + (outcome.reason ? " · " + esc(outcome.reason) : ""), "mono");
+        if (outcome.appointment) html += tableRow("Cita creada", esc(text(outcome.appointment.appointment_id)) + " · " + esc(formatDate(outcome.appointment.start_time)), "mono");
+        html += tableRow("Slots recogidos", "<pre>" + json(outcome.slots_snapshot || {}) + "</pre>") + "</table>";
+      }
+      if (event.message) html += "<h2>Mensaje</h2><table>" + tableRow("Canal", esc(text(event.message.channel)), "mono") + tableRow("Texto", "«" + esc(text(event.message.text)) + "»") + "</table>";
+      if (event.recording !== undefined || event.metrics !== undefined || event.quality !== undefined) {
+        html += "<h2>Grabación, métricas y calidad</h2><table>";
+        if (event.recording !== undefined) html += tableRow("Grabación", "<pre>" + json(event.recording) + "</pre>");
+        if (event.metrics !== undefined) html += tableRow("Métricas", "<pre>" + json(event.metrics) + "</pre>");
+        if (event.quality !== undefined) html += tableRow("Calidad", "<pre>" + json(event.quality) + "</pre>");
+        html += "</table>";
+      }
+      if (event.transcript && event.transcript.length) {
+        html += "<h2>Transcripción</h2>";
+        event.transcript.forEach((turn) => { html += "<div class=\"turn\"><div class=\"seconds\">" + esc(text(turn.time_in_call_secs, "—")) + " s</div><div class=\"speaker " + (turn.role === "agent" ? "agent" : "") + "\">" + esc(turn.role === "agent" ? "agente" : "lead") + "</div><div>" + esc(turn.message) + "</div></div>"; });
+      } else if (event.type === "call.ended") html += "<h2>Transcripción</h2><p class=\"sub\">Sin conversación.</p>";
+      return html;
+    }
+    function renderDecisionAndOrders(event, decision, orders) {
+      let html = "<h2>Decisión</h2>";
+      html += decision ? "<table>" + tableRow("Etiqueta", esc(decision.etiqueta || decision.label), "mono") + tableRow("Motivo", esc(decision.motivo || decision.reason)) + (decision.razonamiento ? tableRow("Razonamiento", esc(decision.razonamiento)) : "") + tableRow("Confianza", esc(decision.confianza ?? decision.confidence), "mono") + (decision.ordenes ? tableRow("Órdenes referenciadas", esc(decision.ordenes.join(", ")), "mono") : "") + "</table>" : "<p class=\"sub\">No hay decisión para este evento.</p>";
+      html += "<h2>Órdenes</h2>";
+      html += orders.length ? orders.map((order) => "<article class=\"order\"><div class=\"operation\">" + esc(order.operacion || order.operation || "orden") + "</div><div class=\"meta\">" + esc(order.orden_id || order.order_id || "sin id") + " · " + esc(order.idempotency_key || "sin clave") + "</div><pre>" + json(order.cuerpo || order.body || order) + "</pre></article>").join("") : "<p class=\"sub\">Ninguna.</p>";
+      return html;
+    }
+    function renderDetail() {
+      const row = displayRows().find((entry) => entry.event.event_id === state.selectedId);
+      if (!row) { setDetail("<div class=\"empty\">No hay un evento seleccionado.</div>"); return; }
+      if (row.event.synthetic && !row.event.outputSnapshot) {
+        setDetail("<h2>" + esc(row.event.event_id) + " <span class=\"sub mono\">salida sin evento base</span></h2><div class=\"note\"><b>Falta el JSON del evento.</b><br>No hay conversación ni metadatos del evento para mostrar.</div>" + renderDecisionAndOrders(row.event, row.decision, row.orders));
+        return;
+      }
+      setDetail(renderCompleteEvent(row.event) + renderDecisionAndOrders(row.event, row.decision, row.orders) + "<details class=\"raw\"><summary>Ver payload completo del evento</summary><pre>" + json(row.event) + "</pre></details>");
+    }
+    render();
+  </script>
+</body>
+</html>

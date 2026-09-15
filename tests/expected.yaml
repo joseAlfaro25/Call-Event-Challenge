@@ -1,0 +1,51 @@
+events:
+  evt_01:
+    { label: sin_respuesta, operations: [cerrar_llamada, programar_llamada] }
+  evt_02: { label: ocupado, operations: [cerrar_llamada, programar_llamada] }
+  evt_03:
+    { label: persona_equivocada, operations: [cerrar_llamada, crear_tarea] }
+  evt_04: { label: cortada, operations: [cerrar_llamada, programar_llamada] }
+  evt_05:
+    { label: sin_respuesta, operations: [cerrar_llamada, programar_llamada] }
+  evt_06:
+    { label: no_contactar, operations: [cerrar_llamada, marcar_no_contactar] }
+  evt_07: { label: visita_reservada, operations: [cerrar_llamada, crear_tarea] }
+  evt_08:
+    {
+      label: documentacion_enviada,
+      operations:
+        [cerrar_llamada, programar_recordatorio, programar_recordatorio],
+    }
+  evt_09: { label: callback, operations: [cerrar_llamada, programar_llamada] }
+  evt_10: { label: buzon, operations: [cerrar_llamada, programar_llamada] }
+  evt_11:
+    {
+      label: visita_sin_confirmar,
+      operations: [cerrar_llamada, programar_llamada],
+    }
+  evt_12:
+    { label: buzon, operations: [cerrar_llamada, enviar_plantilla_whatsapp] }
+  evt_13:
+    {
+      label: documentacion_pendiente,
+      operations: [cerrar_llamada, crear_tarea],
+    }
+  evt_14:
+    {
+      label: no_aplica,
+      operations: [cancelar_recordatorio, cancelar_recordatorio],
+    }
+  evt_15: { label: callback, operations: [] }
+  evt_16: { label: no_aplica, operations: [] }
+  evt_extra_17:
+    {
+      label: rechazada,
+      operations: [cerrar_llamada, enviar_plantilla_whatsapp],
+    }
+  evt_extra_18:
+    {
+      label: callback,
+      operations:
+        [cerrar_llamada, programar_llamada, enviar_plantilla_whatsapp],
+    }
+  evt_extra_19: { label: descartado, operations: [cerrar_llamada] }

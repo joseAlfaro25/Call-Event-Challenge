@@ -1,0 +1,37 @@
+{
+  "event_id": "evt_extra_17",
+  "type": "call.ended",
+  "occurred_at": "2026-09-16T11:00:00+02:00",
+  "organization_id": "org_demo_a",
+  "idempotency_key": "lk-extra-17",
+  "delivery_attempt": 1,
+  "campaign": { "system_key": "first_touch_voice", "entry_id": "ce-extra-17" },
+  "lead": {
+    "contact_id": "c_extra_17",
+    "phone": "+34600000917",
+    "full_name": "Lead Rechazada",
+    "language": "es"
+  },
+  "telephony": {
+    "provider": "livekit_sip",
+    "call_id": "lk-extra-17",
+    "dialed_at": "2026-09-16T10:59:00+02:00",
+    "ringing_at": null,
+    "answered_at": null,
+    "ended_at": "2026-09-16T11:00:00+02:00",
+    "sip_status_code": 603,
+    "sip_status": "Decline",
+    "disconnect_reason": "USER_REJECTED",
+    "hung_up_by": "callee",
+    "duration_seconds": 0,
+    "amd": { "result": "not_run", "source": "none" }
+  },
+  "transcript": [],
+  "agent_outcome": {
+    "call_outcome": "no_answer",
+    "reason": null,
+    "appointment": null,
+    "slots_snapshot": {}
+  },
+  "quality": { "no_conversation": true }
+}

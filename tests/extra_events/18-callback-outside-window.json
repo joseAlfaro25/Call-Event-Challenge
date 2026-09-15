@@ -1,0 +1,43 @@
+{
+  "event_id": "evt_extra_18",
+  "type": "call.ended",
+  "occurred_at": "2026-09-16T17:00:00+02:00",
+  "organization_id": "org_demo_a",
+  "idempotency_key": "lk-extra-18",
+  "delivery_attempt": 1,
+  "campaign": { "system_key": "first_touch_voice", "entry_id": "ce-extra-18" },
+  "lead": {
+    "contact_id": "c_extra_18",
+    "phone": "+34600000918",
+    "full_name": "Lead Callback",
+    "language": "es"
+  },
+  "telephony": {
+    "provider": "livekit_sip",
+    "call_id": "lk-extra-18",
+    "dialed_at": "2026-09-16T16:59:00+02:00",
+    "ringing_at": "2026-09-16T16:59:10+02:00",
+    "answered_at": "2026-09-16T16:59:20+02:00",
+    "ended_at": "2026-09-16T17:00:00+02:00",
+    "sip_status_code": 200,
+    "sip_status": "OK",
+    "disconnect_reason": "CLIENT_INITIATED",
+    "hung_up_by": "agent",
+    "duration_seconds": 40,
+    "amd": { "result": "human", "source": "livekit_amd" }
+  },
+  "transcript": [
+    {
+      "role": "user",
+      "message": "Llámame hoy a las 22, por favor.",
+      "time_in_call_secs": 20
+    }
+  ],
+  "agent_outcome": {
+    "call_outcome": "callback_requested",
+    "reason": null,
+    "appointment": null,
+    "slots_snapshot": { "callback_when_raw": "hoy a las 22" }
+  },
+  "quality": { "no_conversation": false }
+}
